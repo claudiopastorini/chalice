@@ -112,6 +112,7 @@ class SAMTemplateGenerator(object):
                 'Tags': resource.tags,
                 'Timeout': resource.timeout,
                 'MemorySize': resource.memory_size,
+                'FunctionName': resource.function_name,
             },
         }  # type: Dict[str, Any]
 
