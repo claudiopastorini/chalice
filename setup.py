@@ -15,11 +15,13 @@ install_requires = [
     'attrs==17.4.0',
     'enum-compat>=0.0.2',
     'jmespath>=0.9.3,<1.0.0',
+    'wheel',
+    'setuptools'
 ]
 
 setup(
     name='chalice',
-    version='1.6.0',
+    version='1.6.1',
     description="Microframework",
     long_description=README,
     author="James Saryerwinnie",
