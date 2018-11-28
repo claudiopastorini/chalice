@@ -46,7 +46,7 @@ Tasks that run on a periodic basis:
 
     # Automatically runs every 5 minutes
     @app.schedule(Rate(5, unit=Rate.MINUTES))
-    def periodic_task(event):
+    def periodic_task():
         return {"hello": "world"}
 
 
@@ -854,7 +854,7 @@ There's a couple of things to keep in mind when enabling cors for a view:
   in the ``Access-Control-Allow-Origin`` header.
 
   Example:
-
+  
 .. code-block:: python
 
     from chalice import Chalice, Response
@@ -862,29 +862,22 @@ There's a couple of things to keep in mind when enabling cors for a view:
     app = Chalice(app_name='multipleorigincors')
 
     _ALLOWED_ORIGINS = set([
-	'http://allowed1.example.com',
-	'http://allowed2.example.com',
+        'http://allowed1.example.com',
+        'http://allowed2.example.com',
     ])
 
 
-    @app.route('/cors_multiple_origins', methods=['GET', 'OPTIONS'])
+    @app.route('/cors_multiple_origins', methods=['GET'])
     def supports_cors_multiple_origins():
-	method = app.current_request.method
-	if method == 'OPTIONS':
-	    headers = {
-		'Access-Control-Allow-Method': 'GET,OPTIONS',
-		'Access-Control-Allow-Origin': ','.join(_ALLOWED_ORIGINS),
-		'Access-Control-Allow-Headers': 'X-Some-Header',
-	    }
-	    origin = app.current_request.headers.get('origin', '')
-	    if origin in _ALLOWED_ORIGINS:
-		headers.update({'Access-Control-Allow-Origin': origin})
-	    return Response(
-		body=None,
-		headers=headers,
-	    )
-	elif method == 'GET':
-	    return 'Foo'
+        origin = app.current_request.to_dict()['headers'].get('origin', '')
+        if origin in _ALLOWED_ORIGINS:
+            return Response(
+                body='You sent a whitelisted origin!\n',
+                headers={
+                    'Access-Control-Allow-Origin': origin
+                })
+        else:
+            return "The origin you sent has not been whitelisted: %s\n" % origin
 
 * Every view function must explicitly enable CORS support.
 
@@ -1177,9 +1170,10 @@ Similar to the ``chalice deploy`` command, you can specify which
 chalice stage to delete.  By default it will delete the ``dev`` stage::
 
     $ chalice delete --stage dev
-    Deleting Rest API: duvw4kwyl3
-    Deleting function aws:arn:lambda:region:123456789:helloworld-dev
-    Deleting IAM Role helloworld-dev
+    Deleting rest API duvw4kwyl3
+    Deleting lambda function helloworld-dev
+    Delete the role helloworld-dev? [y/N]: y
+    Deleting role name helloworld-dev
 
 .. quick-start-end
 

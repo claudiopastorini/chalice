@@ -2,8 +2,8 @@
 CHANGELOG
 =========
 
-1.6.1
-=====
+Next Release (TBD)
+==================
 
 * Fix local mode issue with unicode responses and Content-Length
   (`#910 <https://github.com/aws/chalice/pull/910>`__)
