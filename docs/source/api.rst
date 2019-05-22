@@ -235,8 +235,7 @@ Chalice
               app.log.info("SNS subject: %s", event.subject)
               app.log.info("SNS message: %s", event.message)
 
-      :param topic: The name of the SNS topic you want to subscribe to.
-        This is the name of the topic, not the topic ARN.
+      :param topic: The name or ARN of the SNS topic you want to subscribe to.
 
       :param name: The name of the function to use.  This name is combined
         with the chalice app name as well as the stage name to create the
@@ -301,6 +300,20 @@ Chalice
         entire lambda function name.  This parameter is optional.  If it is
         not provided, the name of the python function will be used.
 
+   .. method:: register_blueprint(blueprint, name_prefix=None, url_prefix=None)
+
+      Register a :class:`Blueprint` to a Chalice app.
+      See :doc:`topics/blueprints` for more information.
+
+      :param blueprint: The :class:`Blueprint` to register to the app.
+
+      :param name_prefix: An optional name prefix that's added to all the
+        resources specified in the blueprint.
+
+      :param url_prefix: An optional url prefix that's added to all the
+        routes defined the Blueprint.  This allows you to set the root mount
+        point for all URLs in a Blueprint.
+
 
 Request
 =======
@@ -325,7 +338,8 @@ Request
 
   .. attribute:: query_params
 
-     A dict of the query params for the request.
+     A dict of the query params for the request.  This value is ``None`` if
+     no query params were provided in the request.
 
   .. attribute:: headers
 
@@ -333,7 +347,8 @@ Request
 
   .. attribute:: uri_params
 
-     A dict of the captured URI params.
+     A dict of the captured URI params.  This value is ``None`` if no
+     URI params were provided in the request.
 
   .. attribute:: method
 
@@ -454,7 +469,7 @@ for an ``@app.route(authorizer=...)`` call:
 
      The URI of the lambda function to use for the custom authorizer.  This
      usually has the form
-     ``arn:aws:apigateway:{region}:lambda:path/2015-03-01/functions/{lambda_arn}/invocations``.
+     ``arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/{lambda_arn}/invocations``.
 
   .. attribute:: ttl_seconds
 
@@ -657,8 +672,8 @@ CORS
      ``Access-Control-Allow-Credentials``.
 
 
-Scheduled Events
-================
+Event Sources
+=============
 
 .. versionadded:: 1.0.0b1
 
@@ -812,6 +827,12 @@ Scheduled Events
       For scheduled events, this will include the ARN of the CloudWatch
       rule that triggered this event.
 
+   .. attribute:: context
+
+      A `Lambda context object <https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html>`_
+      that is passed to the handler by AWS Lambda. This is useful if you need
+      the AWS request ID for tracing, or any other data in the context object.
+
    .. method:: to_dict()
 
       Return the original event dictionary provided
@@ -860,6 +881,12 @@ Scheduled Events
       access to the original URL encoded key name, you can
       access it through the ``to_dict()`` method.
 
+   .. attribute:: context
+
+      A `Lambda context object <https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html>`_
+      that is passed to the handler by AWS Lambda. This is useful if you need
+      the AWS request ID for tracing, or any other data in the context object.
+
    .. method:: to_dict()
 
       Return the original event dictionary provided
@@ -896,6 +923,12 @@ Scheduled Events
 
       The string value of the SNS message that was published.
 
+   .. attribute:: context
+
+      A `Lambda context object <https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html>`_
+      that is passed to the handler by AWS Lambda. This is useful if you need
+      the AWS request ID for tracing, or any other data in the context object.
+
    .. method:: to_dict()
 
       Return the original event dictionary provided
@@ -927,6 +960,12 @@ Scheduled Events
       the event.  Each element in the iterable is of type
       :class:`SQSRecord`.
 
+   .. attribute:: context
+
+      A `Lambda context object <https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html>`_
+      that is passed to the handler by AWS Lambda. This is useful if you need
+      the AWS request ID for tracing, or any other data in the context object.
+
    .. method:: to_dict()
 
       Return the original event dictionary provided
@@ -950,8 +989,53 @@ Scheduled Events
       if you need to manually delete an SQS message to account for
       partial failures.
 
+   .. attribute:: context
+
+      A `Lambda context object <https://docs.aws.amazon.com/lambda/latest/dg/python-context-object.html>`_
+      that is passed to the handler by AWS Lambda.
+
    .. method:: to_dict()
 
       Return the original dictionary associated with the given
       message. This is useful if you need direct
       access to the lambda event.
+
+
+Blueprints
+==========
+
+.. class:: Blueprint(import_name)
+
+  An object used for grouping related handlers together.
+  This is primarily used as a mechanism for organizing your lambda
+  handlers.  Any decorator methods defined in the :class:`Chalice`
+  object are also defined on a ``Blueprint`` object.  You can register
+  a blueprint to a Chalice app using the :meth:`Chalice.register_blueprint`
+  method.
+
+  The ``import_name`` is the module in which the Blueprint is defined.
+  It is used to construct the appropriate handler string when creating
+  the Lambda functions associated with a Blueprint.  This is typically
+  the `__name__` attribute:``mybp = Blueprint(__name__)``.
+
+  See :doc:`topics/blueprints` for more information.
+
+  .. code-block:: python
+
+      # In ./app.py
+
+      from chalice import Chalice
+      from chalicelib import myblueprint
+
+      app = Chalice(app_name='blueprints')
+      app.register_blueprint(myblueprint)
+
+      # In chalicelib/myblueprint.py
+
+      from chalice import Blueprint
+
+      myblueprint = Blueprint(__name__)
+
+      @myblueprint.route('/')
+      def index():
+          return {'hello': 'world'}

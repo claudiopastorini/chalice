@@ -115,7 +115,7 @@ from chalice.utils import OSUtils, UI, serialize_to_json
 from chalice.deploy.validate import validate_configuration
 
 
-OPT_STR = Optional[str]
+OptStr = Optional[str]
 LOGGER = logging.getLogger(__name__)
 
 
@@ -188,7 +188,7 @@ class ChaliceDeploymentError(Exception):
         return message
 
     def _get_error_suggestion(self, error):
-        # type: (Exception) -> OPT_STR
+        # type: (Exception) -> OptStr
         suggestion = None
         if isinstance(error, DeploymentPackageTooLargeError):
             suggestion = (
@@ -581,6 +581,11 @@ class ApplicationGraphBuilder(object):
                                             security_group_ids)
             )
 
+    def _get_lambda_layers(self, config):
+        # type: (Config) -> List[str]
+        layers = config.layers
+        return layers if layers else []
+
     def _build_lambda_function(self,
                                config,        # type: Config
                                name,          # type: str
@@ -592,6 +597,7 @@ class ApplicationGraphBuilder(object):
         function_name = '%s-%s-%s' % (
             config.app_name, config.chalice_stage, name)
         security_group_ids, subnet_ids = self._get_vpc_params(name, config)
+        lambda_layers = self._get_lambda_layers(config)
         function = models.LambdaFunction(
             resource_name=name,
             function_name=function_name,
@@ -606,6 +612,7 @@ class ApplicationGraphBuilder(object):
             security_group_ids=security_group_ids,
             subnet_ids=subnet_ids,
             reserved_concurrency=config.reserved_concurrency,
+            layers=lambda_layers
         )
         self._inject_role_traits(function, role)
         return function

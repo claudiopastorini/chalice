@@ -213,27 +213,56 @@ def test_path_params_mapped_in_api(smoke_test_app, apig_client):
     # query the resources we've created in API gateway
     # and make sure requestParameters are present.
     rest_api_id = smoke_test_app.rest_api_id
-    resource_id = _get_resource_id(apig_client, rest_api_id)
-    method_config = apig_client.get_method(
+    response = apig_client.get_export(restApiId=rest_api_id,
+                                      stageName='api',
+                                      exportType='swagger')
+    swagger_doc = json.loads(response['body'].read())
+    route_config = swagger_doc['paths']['/path/{name}']['get']
+    assert route_config.get('parameters', {}) == [
+        {'name': 'name', 'in': 'path', 'required': True, 'type': 'string'},
+    ]
+
+
+def test_single_doc_mapped_in_api(smoke_test_app, apig_client):
+    # We'll use the same API Gateway technique as in
+    # test_path_params_mapped_in_api()
+    rest_api_id = smoke_test_app.rest_api_id
+    doc_parts = apig_client.get_documentation_parts(
         restApiId=rest_api_id,
-        resourceId=resource_id,
-        httpMethod='GET'
+        type='METHOD',
+        path='/singledoc'
     )
-    assert 'requestParameters' in method_config
-    assert method_config['requestParameters'] == {
-        'method.request.path.name': True
-    }
+    doc_props = json.loads(doc_parts['items'][0]['properties'])
+    assert 'summary' in doc_props
+    assert 'description' not in doc_props
+    assert doc_props['summary'] == 'Single line docstring.'
+
+
+def test_multi_doc_mapped_in_api(smoke_test_app, apig_client):
+    # We'll use the same API Gateway technique as in
+    # test_path_params_mapped_in_api()
+    rest_api_id = smoke_test_app.rest_api_id
+    doc_parts = apig_client.get_documentation_parts(
+        restApiId=rest_api_id,
+        type='METHOD',
+        path='/multidoc'
+    )
+    doc_props = json.loads(doc_parts['items'][0]['properties'])
+    assert 'summary' in doc_props
+    assert 'description' in doc_props
+    assert doc_props['summary'] == 'Multi-line docstring.'
+    assert doc_props['description'] == 'And here is another line.'
 
 
 @retry(max_attempts=18, delay=10)
-def _get_resource_id(apig_client, rest_api_id):
+def _get_resource_id(apig_client, rest_api_id, path):
     # This is the resource id for the '/path/{name}'
     # route.  As far as I know this is the best way to get
     # this id.
     matches = [
         resource for resource in
         apig_client.get_resources(restApiId=rest_api_id)['items']
-        if resource['path'] == '/path/{name}'
+        if resource['path'] == path
     ]
     if matches:
         return matches[0]['id']
@@ -338,6 +367,17 @@ def test_can_round_trip_binary_custom_content_type(smoke_test_app):
                              },
                              data=bin_data)
     assert response.content == bin_data
+
+
+def test_can_return_default_binary_data_to_a_browser(smoke_test_app):
+    base64encoded_response = b'3q2+7w=='
+    accept = 'text/html,application/xhtml+xml;q=0.9,image/webp,*/*;q=0.8'
+    response = requests.get(smoke_test_app.url + '/get-binary',
+                            headers={
+                                'Accept': accept,
+                             })
+    response.raise_for_status()
+    assert response.content == base64encoded_response
 
 
 def _assert_contains_access_control_allow_methods(headers, methods):

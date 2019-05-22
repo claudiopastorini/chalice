@@ -208,6 +208,10 @@ command::
     2018-06-28 17:49:30.513000 547e0f chalice-demo-sns - DEBUG - Received message with subject: TestSubject1, message: TestMessage1
     2018-06-28 17:49:40.391000 547e0f chalice-demo-sns - DEBUG - Received message with subject: TestSubject2, message: TestMessage2
 
+In this example we used the SNS topic name to register our handler, but you can
+also use the topic arn. This can be useful if your topic is in another region
+or account.
+
 
 .. _sqs-events:
 
@@ -223,7 +227,7 @@ The message visibility timeout of your SQS queue must be greater than or
 equal to the lambda timeout.  The default message visibility timeout
 when you create an SQS queue is 30 seconds, and the default timeout
 for a Lambda function is 60 seconds, so you'll need to modify one of these
-values in order to succesfully connect an SQS queue to a Lambda function.
+values in order to successfully connect an SQS queue to a Lambda function.
 
 You can check the visibility timeout of your queue using the
 ``GetQueueAttributes`` API call.  Using the
@@ -290,7 +294,7 @@ function to the ``my-queue`` SQS queue.
             app.log.debug("Received message with contents: ", record.body)
 
 
-Whenver a message is sent to the SQS queue our function will be automatically
+Whenever a message is sent to the SQS queue our function will be automatically
 invoked.  The function argument is an :class:`SQSEvent` object, and each
 ``record`` in the example above is of type :class:`SQSRecord`.  Lambda takes
 care of automatically scaling your function as needed.  See `Understanding

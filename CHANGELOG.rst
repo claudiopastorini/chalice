@@ -4,6 +4,64 @@ CHANGELOG
 
 Next Release (TBD)
 ==================
+=======
+
+* Update PIP to support up to 19.1.x
+  (`#1104 <https://github.com/aws/chalice/issues/1104>`__)
+* Fix handling of more complex Accept headers for binary
+  content types
+  (`#1078 <https://github.com/aws/chalice/issues/1078>`__)
+* Raise TypeError when trying to serialize an unserializable
+  type
+  (`#1100 <https://github.com/aws/chalice/issues/1100>`__)
+
+
+1.8.0
+=====
+
+* Fall back to pure python version of yaml parser
+  when unable to compile C bindings for PyYAML
+  (`#1074 <https://github.com/aws/chalice/issues/1074>`__)
+* Add support for Lambda layers.
+  (`#1001 <https://github.com/aws/chalice/issues/1001>`__)
+
+
+1.7.0
+=====
+
+* Fix packaging multiple local directories as dependencies
+  (`#1047 <https://github.com/aws/chalice/pull/1047>`__)
+* Add support for passing SNS ARNs to ``on_sns_message``
+  (`#1048 <https://github.com/aws/chalice/pull/1048>`__)
+* Add support for Blueprints
+  (`#1023 <https://github.com/aws/chalice/pull/1023>`__)
+* Add support for opting-in to experimental features
+  (`#1053 <https://github.com/aws/chalice/pull/1053>`__)
+* Provide Lambda context in event object
+  (`#856 <https://github.com/aws/chalice/issues/856>`__)
+
+
+1.6.2
+=====
+
+* Add support for pip 18.2
+  (`#991 <https://github.com/aws/chalice/pull/991>`__)
+* Add more detailed debug logs to the packager.
+  (`#934 <https://github.com/aws/chalice/pull/934>`__)
+* Add support for python3.7
+  (`#992 <https://github.com/aws/chalice/pull/992>`__)
+* Support bytes for the application/json binary type
+  (`#988 <https://github.com/aws/chalice/issues/988>`__)
+* Use more compact JSON representation by default for dicts
+  (`#958 <https://github.com/aws/chalice/pull/958>`__)
+* Log internal exceptions as errors
+  (`#254 <https://github.com/aws/chalice/issues/254>`__)
+* Generate swagger documentation from docstrings
+  (`#574 <https://github.com/aws/chalice/issues/574>`__)
+
+
+1.6.1
+=====
 
 * Fix local mode issue with unicode responses and Content-Length
   (`#910 <https://github.com/aws/chalice/pull/910>`__)

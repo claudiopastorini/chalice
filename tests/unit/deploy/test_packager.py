@@ -1,4 +1,3 @@
-import sys
 import pytest
 from collections import namedtuple
 
@@ -193,11 +192,8 @@ class TestPipRunner(object):
         # for getting lambda compatible wheels.
         pip, runner = pip_factory()
         packages = ['foo', 'bar', 'baz']
-        runner.download_manylinux_wheels(packages, 'directory')
-        if sys.version_info[0] == 2:
-            abi = 'cp27mu'
-        else:
-            abi = 'cp36m'
+        abi = 'cp37m'
+        runner.download_manylinux_wheels(abi, packages, 'directory')
         expected_prefix = ['download', '--only-binary=:all:', '--no-deps',
                            '--platform', 'manylinux1_x86_64',
                            '--implementation', 'cp', '--abi', abi,
@@ -209,8 +205,38 @@ class TestPipRunner(object):
 
     def test_download_wheels_no_wheels(self, pip_factory):
         pip, runner = pip_factory()
-        runner.download_manylinux_wheels([], 'directory')
+        runner.download_manylinux_wheels('cp36m', [], 'directory')
         assert len(pip.calls) == 0
+
+    def test_does_find_local_directory(self, pip_factory):
+        pip, runner = pip_factory()
+        pip.add_return((0,
+                        (b"Processing ../local-dir\n"
+                         b"  Link is a directory,"
+                         b" ignoring download_dir"),
+                        b''))
+        runner.download_all_dependencies('requirements.txt', 'directory')
+        assert len(pip.calls) == 2
+        assert pip.calls[1].args == ['wheel', '--no-deps', '--wheel-dir',
+                                     'directory', '../local-dir']
+
+    def test_does_find_multiple_local_directories(self, pip_factory):
+        pip, runner = pip_factory()
+        pip.add_return((0,
+                        (b"Processing ../local-dir-1\n"
+                         b"  Link is a directory,"
+                         b" ignoring download_dir"
+                         b"\nsome pip output...\n"
+                         b"Processing ../local-dir-2\n"
+                         b"  Link is a directory,"
+                         b" ignoring download_dir"),
+                        b''))
+        runner.download_all_dependencies('requirements.txt', 'directory')
+        assert len(pip.calls) == 3
+        assert pip.calls[1].args == ['wheel', '--no-deps', '--wheel-dir',
+                                     'directory', '../local-dir-1']
+        assert pip.calls[2].args == ['wheel', '--no-deps', '--wheel-dir',
+                                     'directory', '../local-dir-2']
 
     def test_raise_no_such_package_error(self, pip_factory):
         pip, runner = pip_factory()

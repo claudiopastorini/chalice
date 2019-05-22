@@ -17,7 +17,7 @@ def create_function_resource(name, function_name=None,
                              runtime='python2.7', handler='app.app',
                              tags=None, timeout=60,
                              memory_size=128, deployment_package=None,
-                             role=None):
+                             role=None, layers=None):
     if function_name is None:
         function_name = 'appname-dev-%s' % name
     if environment_variables is None:
@@ -41,6 +41,7 @@ def create_function_resource(name, function_name=None,
         role=role,
         security_group_ids=[],
         subnet_ids=[],
+        layers=layers,
         reserved_concurrency=None,
     )
 
@@ -229,6 +230,7 @@ class TestPlanLambdaFunction(BasePlannerTests):
                 'memory_size': 128,
                 'security_group_ids': [],
                 'subnet_ids': [],
+                'layers': None
             },
         ),
             models.APICall(
@@ -238,6 +240,45 @@ class TestPlanLambdaFunction(BasePlannerTests):
             },
             output_var='reserved_concurrency_result',
         )]
+
+        # create_function
+        self.assert_apicall_equals(plan[0], expected[0])
+        # delete_function_concurrency
+        self.assert_apicall_equals(plan[2], expected[1])
+
+        assert list(self.last_plan.messages.values()) == [
+            'Creating lambda function: appname-dev-function_name\n',
+        ]
+
+    def test_create_function_with_layers(self):
+        layers = ['arn:aws:lambda:us-east-1:111:layer:test_layer:1']
+        function = create_function_resource('function_name', layers=layers)
+        self.remote_state.declare_no_resources_exists()
+        plan = self.determine_plan(function)
+        expected = [models.APICall(
+            method_name='create_function',
+            params={
+                'function_name': 'appname-dev-function_name',
+                'role_arn': 'role:arn',
+                'zip_contents': mock.ANY,
+                'runtime': 'python2.7',
+                'handler': 'app.app',
+                'environment_variables': {},
+                'tags': {},
+                'timeout': 60,
+                'memory_size': 128,
+                'security_group_ids': [],
+                'subnet_ids': [],
+                'layers': layers
+            },
+        ),
+            models.APICall(
+                method_name='delete_function_concurrency',
+                params={
+                    'function_name': 'appname-dev-function_name',
+                },
+                output_var='reserved_concurrency_result',
+            )]
 
         # create_function
         self.assert_apicall_equals(plan[0], expected[0])
@@ -266,6 +307,7 @@ class TestPlanLambdaFunction(BasePlannerTests):
             'timeout': 60,
             'security_group_ids': [],
             'subnet_ids': [],
+            'layers': None
         }
         expected_params = dict(memory_size=256, **existing_params)
         expected = [models.APICall(
@@ -308,6 +350,7 @@ class TestPlanLambdaFunction(BasePlannerTests):
                 'memory_size': 128,
                 'security_group_ids': [],
                 'subnet_ids': [],
+                'layers': None
             },
         ),
             models.APICall(
@@ -640,6 +683,63 @@ class TestPlanSNSSubscription(BasePlannerTests):
                 resource_name='function_name-sns-subscription',
                 name='topic',
                 value='mytopic'),
+            models.RecordResourceVariable(
+                resource_type='sns_event',
+                resource_name='function_name-sns-subscription',
+                name='lambda_arn',
+                variable_name='function_name_lambda_arn'
+            ),
+            models.RecordResourceVariable(
+                resource_type='sns_event',
+                resource_name='function_name-sns-subscription',
+                name='subscription_arn',
+                variable_name='function_name-sns-subscription_subscription_arn'
+            ),
+            models.RecordResourceVariable(
+                resource_type='sns_event',
+                resource_name='function_name-sns-subscription',
+                name='topic_arn',
+                variable_name='function_name-sns-subscription_topic_arn',
+            ),
+        ]
+
+    def test_can_plan_sns_arn_subscription(self):
+        function = create_function_resource('function_name')
+        topic_arn = 'arn:aws:sns:mars-west-2:123456789:mytopic'
+        sns_subscription = models.SNSLambdaSubscription(
+            resource_name='function_name-sns-subscription',
+            topic=topic_arn,
+            lambda_function=function
+        )
+        plan = self.determine_plan(sns_subscription)
+        plan_parse_arn = plan[0]
+        assert plan_parse_arn == models.StoreValue(
+            name='function_name-sns-subscription_topic_arn',
+            value=topic_arn,
+        )
+        topic_arn_var = Variable("function_name-sns-subscription_topic_arn")
+        assert plan[1:] == [
+            models.APICall(
+                method_name='add_permission_for_sns_topic',
+                params={
+                    'function_arn': Variable("function_name_lambda_arn"),
+                    'topic_arn': topic_arn_var,
+                },
+                output_var=None
+            ),
+            models.APICall(
+                method_name='subscribe_function_to_topic',
+                params={
+                    'function_arn': Variable("function_name_lambda_arn"),
+                    'topic_arn': topic_arn_var,
+                },
+                output_var='function_name-sns-subscription_subscription_arn'
+            ),
+            models.RecordResourceValue(
+                resource_type='sns_event',
+                resource_name='function_name-sns-subscription',
+                name='topic',
+                value=topic_arn),
             models.RecordResourceVariable(
                 resource_type='sns_event',
                 resource_name='function_name-sns-subscription',

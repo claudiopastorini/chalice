@@ -58,7 +58,7 @@ You can connect a lambda function to an S3 event:
 
     app = Chalice(app_name="helloworld")
 
-    # Whenver an object is uploaded to 'mybucket'
+    # Whenever an object is uploaded to 'mybucket'
     # this lambda function will be invoked.
 
     @app.on_s3_event(bucket='mybucket')
@@ -117,17 +117,16 @@ is recommended::
     $ virtualenv ~/.virtualenvs/chalice-demo
     $ source ~/.virtualenvs/chalice-demo/bin/activate
 
-Note: **make sure you are using python2.7 or python3.6**.  The ``chalice`` CLI
-as well as the ``chalice`` python package will support the versions of python
-supported by AWS Lambda.  Currently, AWS Lambda supports python2.7 and
-python3.6, so that's what this project supports.  You can ensure you're
-creating a virtualenv with python3.6 by running::
+Note: **make sure you are using python2.7, python3.6, or python3.7**.
+These are the only python versions currently supported by AWS Lambda so they
+are also the only versions supported by the ``chalice`` CLI and ``chalice``
+python package. You can find the latest versions of python on the
+`Python download page <https://www.python.org/downloads/>`_. You can check
+the version of python in your virtualenv by
+running::
 
-    # Double check you have python3.6
-    $ which python3.6
-    /usr/local/bin/python3.6
-    $ virtualenv --python $(which python3.6) ~/.virtualenvs/chalice-demo
-    $ source ~/.virtualenvs/chalice-demo/bin/activate
+    # Double check you have a supported python version in your virtualenv
+    $ python -V
 
 Next, in your virtualenv, install ``chalice``::
 
@@ -776,6 +775,45 @@ This will result in a plain text response body::
     hello world!
 
 
+Tutorial: GZIP compression for json
+===================================
+The return value from a chalice view function is serialized as JSON as the
+response body returned back to the caller.  This makes it easy to create
+rest APIs that return JSON response bodies.
+
+Chalice allows you to control this behavior by returning an instance of
+a chalice specific ``Response`` class.  This behavior allows you to:
+
+* Add ``application/json`` to binary_types
+* Specify the status code to return
+* Specify custom header ``Content-Type: application/json``
+* Specify custom header ``Content-Encoding: gzip``
+
+Here's an example of this:
+
+.. code-block:: python
+
+    import json
+    import gzip
+    from chalice import Chalice, Response
+
+    app = Chalice(app_name='compress-response')
+    app.api.binary_types.append('application/json')
+
+    @app.route('/')
+    def index():
+        blob = json.dumps({'hello': 'world'}).encode('utf-8')
+        payload = gzip.compress(blob)
+        custom_headers = {
+            'Content-Type': 'application/json',
+            'Content-Encoding': 'gzip'
+        }
+        return Response(body=payload,
+                        status_code=200,
+                        headers=custom_headers)
+
+
+
 Tutorial: CORS Support
 ======================
 
@@ -1102,7 +1140,7 @@ to the URI of your lambda function.
 
     authorizer = CustomAuthorizer(
         'MyCustomAuth', header='Authorization',
-        authorizer_uri=('arn:aws:apigateway:region:lambda:path/2015-03-01'
+        authorizer_uri=('arn:aws:apigateway:region:lambda:path/2015-03-31'
                         '/functions/arn:aws:lambda:region:account-id:'
                         'function:FunctionName/invocations'))
 
@@ -1132,13 +1170,13 @@ For example, if we have the following ``app.py`` file:
         return {'hello': 'world'}
 
 
-We can run ``chalice local`` to test this API locally:
+We can run ``chalice local`` to test this API locally::
 
 
     $ chalice local
     Serving on localhost:8000
 
-We can override the port using:
+We can override the port using::
 
     $ chalice local --port=8080
 

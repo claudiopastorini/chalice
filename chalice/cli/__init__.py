@@ -26,6 +26,7 @@ from chalice.config import Config  # noqa
 from chalice.logs import display_logs
 from chalice.utils import create_zip_file
 from chalice.deploy.validate import validate_routes, validate_python_version
+from chalice.deploy.validate import ExperimentalFeatureError
 from chalice.utils import getting_started_prompt, UI, serialize_to_json
 from chalice.constants import CONFIG_VERSION, TEMPLATE_APP, GITIGNORE
 from chalice.constants import DEFAULT_STAGE_NAME
@@ -33,6 +34,19 @@ from chalice.constants import DEFAULT_APIGATEWAY_STAGE_NAME
 from chalice.local import LocalDevServer  # noqa
 from chalice.constants import DEFAULT_HANDLER_NAME
 from chalice.invoke import UnhandledLambdaError
+
+
+def _configure_logging(level, format_string=None):
+    # type: (int, Optional[str]) -> None
+    if format_string is None:
+        format_string = "%(asctime)s %(name)s [%(levelname)s] %(message)s"
+    logger = logging.getLogger('')
+    logger.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setLevel(level)
+    formatter = logging.Formatter(format_string)
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
 
 
 def create_new_project_skeleton(project_name, profile=None):
@@ -86,6 +100,8 @@ def cli(ctx, project_dir, debug=False):
     # type: (click.Context, str, bool) -> None
     if project_dir is None:
         project_dir = os.getcwd()
+    if debug is True:
+        _configure_logging(logging.DEBUG)
     ctx.obj['project_dir'] = project_dir
     ctx.obj['debug'] = debug
     ctx.obj['factory'] = CLIFactory(project_dir, debug, environ=os.environ)
@@ -450,6 +466,9 @@ def main():
                    "Either export the AWS_DEFAULT_REGION "
                    "environment variable or set the "
                    "region value in our ~/.aws/config file.", err=True)
+        return 2
+    except ExperimentalFeatureError as e:
+        click.echo(str(e))
         return 2
     except Exception:
         click.echo(traceback.format_exc(), err=True)

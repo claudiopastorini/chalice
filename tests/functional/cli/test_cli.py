@@ -1,6 +1,8 @@
 import json
 import zipfile
 import os
+import sys
+import re
 
 import pytest
 from click.testing import CliRunner
@@ -17,6 +19,7 @@ from chalice.logs import LogRetriever
 from chalice.invoke import LambdaInvokeHandler
 from chalice.invoke import UnhandledLambdaError
 from chalice.awsclient import ReadTimeout
+from chalice.deploy.validate import ExperimentalFeatureError
 
 
 class FakeConfig(object):
@@ -149,6 +152,17 @@ def test_can_package_with_single_file(runner):
             assert sorted(f.namelist()) == ['deployment.zip', 'sam.json']
 
 
+def test_debug_flag_enables_logging(runner):
+    with runner.isolated_filesystem():
+        cli.create_new_project_skeleton('testproject')
+        os.chdir('testproject')
+        result = runner.invoke(
+            cli.cli, ['--debug', 'package', 'outdir'], obj={})
+        assert result.exit_code == 0
+        assert re.search('[DEBUG].*Creating deployment package',
+                         result.output) is not None
+
+
 def test_does_deploy_with_default_api_gateway_stage_name(runner,
                                                          mock_cli_factory):
     with runner.isolated_filesystem():
@@ -245,6 +259,8 @@ def test_error_when_no_deployed_record(runner, mock_cli_factory):
         assert 'not find' in result.output
 
 
+@pytest.mark.skipif(sys.version_info[:2] == (3, 7),
+                    reason="Cannot generate pipeline for python3.7.")
 def test_can_generate_pipeline_for_all(runner):
     with runner.isolated_filesystem():
         cli.create_new_project_skeleton('testproject')
@@ -445,3 +461,24 @@ def test_invoke_does_raise_if_no_function_found(runner, mock_cli_factory):
                                   cli_factory=mock_cli_factory)
         assert result.exit_code == 2
         assert 'foo' in result.output
+
+
+def test_error_message_displayed_when_missing_feature_opt_in(runner):
+    with runner.isolated_filesystem():
+        cli.create_new_project_skeleton('testproject')
+        sys.modules.pop('app', None)
+        with open(os.path.join('testproject', 'app.py'), 'w') as f:
+            # Rather than pick an existing experimental feature, we're
+            # manually injecting a feature flag into our app.  This ensures
+            # we don't have to update this test if a feature graduates
+            # from trial to accepted.  The '_features_used' is a "package
+            # private" var for chalice code.
+            f.write(
+                'from chalice import Chalice\n'
+                'app = Chalice("myapp")\n'
+                'app._features_used.add("MYTESTFEATURE")\n'
+            )
+        os.chdir('testproject')
+        result = _run_cli_command(runner, cli.package, ['out'])
+        assert isinstance(result.exception, ExperimentalFeatureError)
+        assert 'MYTESTFEATURE' in str(result.exception)

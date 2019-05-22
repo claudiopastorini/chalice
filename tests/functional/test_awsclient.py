@@ -514,6 +514,24 @@ class TestCreateLambdaFunction(object):
             ) == 'arn:12345:name'
         stubbed_session.verify_stubs()
 
+    def test_create_function_with_layers(self, stubbed_session):
+        layers = ['arn:aws:lambda:us-east-1:111:layer:test_layer:1']
+        stubbed_session.stub('lambda').create_function(
+            FunctionName='name',
+            Runtime='python2.7',
+            Code={'ZipFile': b'foo'},
+            Handler='app.app',
+            Role='myarn',
+            Layers=layers
+        ).returns({'FunctionArn': 'arn:12345:name'})
+        stubbed_session.activate_stubs()
+        awsclient = TypedAWSClient(stubbed_session)
+        assert awsclient.create_function(
+            'name', 'myarn', b'foo', 'python2.7', 'app.app',
+            layers=layers
+        ) == 'arn:12345:name'
+        stubbed_session.verify_stubs()
+
     def test_create_function_is_retried_and_succeeds(self, stubbed_session):
         kwargs = {
             'FunctionName': 'name',
@@ -534,6 +552,40 @@ class TestCreateLambdaFunction(object):
                      'be assumed by Lambda.'))
         stubbed_session.stub('lambda').create_function(
             **kwargs).returns({'FunctionArn': 'arn:12345:name'})
+        stubbed_session.activate_stubs()
+        awsclient = TypedAWSClient(stubbed_session, mock.Mock(spec=time.sleep))
+        assert awsclient.create_function(
+            'name', 'myarn', b'foo',
+            'python2.7', 'app.app') == 'arn:12345:name'
+        stubbed_session.verify_stubs()
+
+    def test_create_function_retries_on_kms_errors(self, stubbed_session):
+        # You'll sometimes get this message when you first create a role.
+        # We want to ensure that we're trying when this happens.
+        error_code = 'InvalidParameterValueException'
+        error_message = (
+            'Lambda was unable to configure access to your '
+            'environment variables because the KMS key '
+            'is invalid for CreateGrant. Please '
+            'check your KMS key settings. '
+            'KMS Exception: InvalidArnException KMS Message: '
+            'ARN does not refer to a valid principal'
+        )
+        kwargs = {
+            'FunctionName': 'name',
+            'Runtime': 'python2.7',
+            'Code': {'ZipFile': b'foo'},
+            'Handler': 'app.app',
+            'Role': 'myarn',
+        }
+        client = stubbed_session.stub('lambda')
+        client.create_function(**kwargs).raises_error(
+            error_code=error_code,
+            message=error_message
+        )
+        client.create_function(**kwargs).returns(
+            {'FunctionArn': 'arn:12345:name'}
+        )
         stubbed_session.activate_stubs()
         awsclient = TypedAWSClient(stubbed_session, mock.Mock(spec=time.sleep))
         assert awsclient.create_function(
@@ -811,6 +863,22 @@ class TestUpdateLambdaFunction(object):
             'name', b'foo',
             subnet_ids=['sn1', 'sn2'],
             security_group_ids=['sg1', 'sg2'],
+        )
+        stubbed_session.verify_stubs()
+
+    def test_update_function_with_layers_config(self, stubbed_session):
+        layers = ['arn:aws:lambda:us-east-1:111:layer:test_layer:1']
+        lambda_client = stubbed_session.stub('lambda')
+        lambda_client.update_function_code(
+            FunctionName='name', ZipFile=b'foo').returns({})
+        lambda_client.update_function_configuration(
+            FunctionName='name', Layers=layers
+        ).returns({})
+        stubbed_session.activate_stubs()
+        awsclient = TypedAWSClient(stubbed_session)
+        awsclient.update_function(
+            'name', b'foo',
+            layers=layers
         )
         stubbed_session.verify_stubs()
 

@@ -47,8 +47,6 @@ class TestPipelineGen(object):
             'aws/codebuild/python:3.6.5'
 
     def test_invalid_python_throws_error(self):
-        # This test can be removed when there is a 3.6 codebuild image
-        # available.
         with pytest.raises(InvalidCodeBuildPythonVersion):
             self.generate_template('app', 'python2.6')
 
